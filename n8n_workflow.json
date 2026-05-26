@@ -1,0 +1,532 @@
+{
+  "name": "Yazio Telegram Tracker - V5 avec Correction",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "id": "6d5d603c-b900-4cfd-a4b7-24dbd89bd151",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -608,
+        416
+      ],
+      "webhookId": "yazio-telegram-v5",
+      "credentials": {
+        "telegramApi": {
+          "id": "Pjde9ix5W2lkDyj0",
+          "name": "RomainYazioBot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.message ? ($json.message.reply_to_message ? 'reply' : 'message') : 'click' }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "message"
+            },
+            {
+              "value2": "reply",
+              "output": 1
+            },
+            {
+              "value2": "click",
+              "output": 2
+            }
+          ]
+        }
+      },
+      "id": "a7f419a5-ad58-4c57-90d9-ccfc8578d106",
+      "name": "Switch Type de Requete",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.message.photo !== undefined }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "377d0e77-28af-4fde-b0e3-b45acf6e6cd9",
+      "name": "Photo ou Texte ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.1.18:8000/analyze/text",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.message.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dcaac629-8038-44b2-83a1-e9231707d2a7",
+      "name": "Analyse Texte",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        64,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.1.18:8000/analyze/image",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.message.caption || '' }}"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dc421e4c-1009-4ebe-9a97-df506b55a638",
+      "name": "Analyse Photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        64,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=cat /tmp/yazio_last_{{ $json.message.chat.id }}.json"
+      },
+      "id": "09cc1cda-61cd-4022-9e4c-e89fcc35246f",
+      "name": "Lire JSON Precedent",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.1.18:8000/analyze/correction",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "original_analysis",
+              "value": "={{ JSON.parse($json.stdout) }}"
+            },
+            {
+              "name": "correction",
+              "value": "={{ $('Telegram Trigger').item.json.message.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "52650a57-f0a0-4171-bcc1-1192bb07fca0",
+      "name": "Analyse Correction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        64,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=echo '{{ JSON.stringify($json).replace(/'/g, \"'\\\\''\") }}' > /tmp/yazio_last_{{ $('Telegram Trigger').item.json.message ? $('Telegram Trigger').item.json.message.chat.id : $('Telegram Trigger').item.json.callback_query.message.chat.id }}.json"
+      },
+      "id": "b95a02ed-39fb-4356-856c-faaea95aa1d2",
+      "name": "Sauvegarder JSON",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        288,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "==🍝 Repas détecté : {{ $json.repas }}\n\nCalories totales : {{ $json.total_kcal }} kcal\nProtéines : {{ $json.total_proteines }} g\nGlucides : {{ $json.total_glucides }} g\nLipides : {{ $json.total_lipides }} g\n\nAliments trouvés :\n{{ $json.aliments.map(a => `- ${a.quantite_g}g de ${a.nom} (${a.kcal} kcal)`).join('\\n') }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✅ OUI",
+                    "additionalFields": {
+                      "callback_data": "LOG_YES"
+                    }
+                  },
+                  {
+                    "text": "✏️ CORRIGER",
+                    "additionalFields": {
+                      "callback_data": "LOG_EDIT"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "id": "96e063c2-fc02-4be1-bece-df62962dc15e",
+      "name": "Envoyer Résumé + Boutons",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        736,
+        224
+      ],
+      "webhookId": "91007980-7f3a-419d-9b87-d34c04b7cf94",
+      "credentials": {
+        "telegramApi": {
+          "id": "Pjde9ix5W2lkDyj0",
+          "name": "RomainYazioBot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.callback_query.data }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "LOG_YES"
+            },
+            {
+              "value2": "LOG_EDIT",
+              "output": 1
+            }
+          ]
+        }
+      },
+      "id": "241d48fe-0a0f-4fd5-b688-63ee61defa3e",
+      "name": "Switch Bouton Clique",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=cat /tmp/yazio_last_{{ $json.callback_query.message.chat.id }}.json"
+      },
+      "id": "a06c6fa5-8ad9-4cc8-abf3-2b4ae1648fca",
+      "name": "Lire JSON (Pour Log)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        64,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.1.18:8000/log",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "analysis",
+              "value": "={{ JSON.parse($json.stdout) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "926a0f14-970e-4470-81e2-3147a86bbf64",
+      "name": "Appel Yazio API (Log)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        288,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.callback_query.message.chat.id }}",
+        "text": "=✅ Succès ! Les aliments ont été loggés dans ton journal Yazio.\n\nRésultat détaillé :\n{{ $json.results.map(r => r.status === 'logged' ? `✅ ${r.aliment} -> ${r.yazio_name}` : `❌ ${r.aliment} -> Non trouvé`).join('\\n') }}",
+        "additionalFields": {}
+      },
+      "id": "cdf7908a-01e9-442d-95be-adfecd93a7bf",
+      "name": "Envoyer Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        512,
+        624
+      ],
+      "webhookId": "9875e9c5-4f56-4507-a522-8c4e4911702e",
+      "credentials": {
+        "telegramApi": {
+          "id": "Pjde9ix5W2lkDyj0",
+          "name": "RomainYazioBot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.callback_query.message.chat.id }}",
+        "text": "Que veux-tu corriger ?\n(Ex: \"Enlève le beurre\", \"C'était 200g de pâtes\")",
+        "replyMarkup": "forceReply",
+        "forceReply": {},
+        "additionalFields": {}
+      },
+      "id": "7972af39-7fd6-4b7b-a603-b0aa8541d106",
+      "name": "Demander Correction",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        64,
+        816
+      ],
+      "webhookId": "edc8d1e4-c6e7-4e3c-b9f4-c04ff0465506",
+      "credentials": {
+        "telegramApi": {
+          "id": "Pjde9ix5W2lkDyj0",
+          "name": "RomainYazioBot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let data;\nlet chat_id;\nconst triggerData = $(\"Telegram Trigger\").item.json;\n\n// 1. Récupération du Chat ID (qu'il vienne d'un message ou d'un clic)\nif (triggerData.message) {\n  chat_id = triggerData.message.chat.id;\n} else if (triggerData.callback_query) {\n  chat_id = triggerData.callback_query.message.chat.id;\n}\n\n// 2. Récupération de l'analyse (selon le chemin emprunté)\nif ($(\"Analyse Correction\").isExecuted) {\n  data = $(\"Analyse Correction\").item.json;\n} else if ($(\"Analyse Photo\").isExecuted) {\n  data = $(\"Analyse Photo\").item.json;\n} else if ($(\"Analyse Texte\").isExecuted) {\n  data = $(\"Analyse Texte\").item.json;\n}\n\n// 3. On ajoute le Chat ID à nos données et on envoie le tout !\ndata.chat_id = chat_id;\n\nreturn { json: data };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        224
+      ],
+      "id": "dfcd194c-50fe-452d-a726-82efbc5381d6",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch Type de Requete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Type de Requete": {
+      "main": [
+        [
+          {
+            "node": "Photo ou Texte ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lire JSON Precedent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch Bouton Clique",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Photo ou Texte ?": {
+      "main": [
+        [
+          {
+            "node": "Analyse Photo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyse Texte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyse Texte": {
+      "main": [
+        [
+          {
+            "node": "Sauvegarder JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyse Photo": {
+      "main": [
+        [
+          {
+            "node": "Sauvegarder JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire JSON Precedent": {
+      "main": [
+        [
+          {
+            "node": "Analyse Correction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyse Correction": {
+      "main": [
+        [
+          {
+            "node": "Sauvegarder JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sauvegarder JSON": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Bouton Clique": {
+      "main": [
+        [
+          {
+            "node": "Lire JSON (Pour Log)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Demander Correction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lire JSON (Pour Log)": {
+      "main": [
+        [
+          {
+            "node": "Appel Yazio API (Log)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appel Yazio API (Log)": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Résumé + Boutons",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "dynamic",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "10dd02ce-0ca7-4923-9894-123ac43d272f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b98fd3bdf0015b9d1b6254fc8e300f0e7fd2ec085043983185705ea64105dad4"
+  },
+  "id": "cVyLOjPEgnHUxW0c",
+  "tags": []
+}
