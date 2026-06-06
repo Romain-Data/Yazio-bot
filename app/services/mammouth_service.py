@@ -1,7 +1,9 @@
+import base64
 import os
-from google import genai
+import requests
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
+
 
 class Aliment(BaseModel):
     nom: str = Field(description="Nom usuel de l'aliment")
@@ -12,6 +14,7 @@ class Aliment(BaseModel):
     lipides: float = Field(description="Lipides en grammes pour cette quantité")
     is_recipe: bool = Field(default=False, description="True si l'utilisateur a précisé '(recette)' à côté de cet aliment")
 
+
 class RepasAnalysis(BaseModel):
     repas: str = Field(description="Type de repas: 'breakfast', 'lunch', 'dinner' ou 'snack'")
     aliments: List[Aliment] = Field(description="Liste des aliments identifiés")
@@ -19,14 +22,46 @@ class RepasAnalysis(BaseModel):
     total_proteines: float = Field(description="Total des protéines")
     total_glucides: float = Field(description="Total des glucides")
     total_lipides: float = Field(description="Total des lipides")
+    is_creation_recette: bool = Field(default=False, description="True si l'utilisateur demande explicitement de créer une NOUVELLE recette")
+    nom_recette: Optional[str] = Field(default=None, description="Nom de la nouvelle recette à créer (ex: 'Gâteau au chocolat')")
+    portions: int = Field(default=1, description="Nombre de portions de la recette si précisé (sinon 1)")
 
-class GeminiService:
+
+class MammouthService:
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY must be set in the environment.")
-        self.client = genai.Client(api_key=api_key)
-        self.model_id = "gemini-2.5-flash-lite"
+        self.api_key = os.getenv("MAMMOUTH_API_KEY")
+        if not self.api_key:
+            raise ValueError("MAMMOUTH_API_KEY must be set in the environment.")
+        self.api_url = "https://api.mammouth.ai/v1/chat/completions"
+        self.model_id = os.getenv("MAMMOUTH_MODEL_ID", "gemini-2.5-flash-lite")
+
+    def _call_api(self, prompt: str, image_part: dict = None) -> RepasAnalysis:
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+
+        content_list = [{"type": "text", "text": prompt}]
+        if image_part:
+            content_list.append(image_part)
+
+        payload = {
+            "model": self.model_id,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": content_list
+                }
+            ],
+            "response_format": {"type": "json_object"}
+        }
+
+        response = requests.post(self.api_url, headers=headers, json=payload)
+        response.raise_for_status()
+
+        result_data = response.json()
+        content = result_data["choices"][0]["message"]["content"]
+        return RepasAnalysis.model_validate_json(content)
 
     def analyze_text(self, text: str, local_time: str = None) -> RepasAnalysis:
         """
@@ -43,25 +78,26 @@ class GeminiService:
         Déduis le type de repas (breakfast, lunch, snack, dinner) en fonction de l'heure ou de la description.
         ATTENTION : Si l'utilisateur précise explicitement le type de repas dans son message (ex: "petit déjeuner", "déjeuner", "dîner", "snack", "goûter"), tu DOIS utiliser cette information en priorité absolue.
         ATTENTION RECETTE : Si l'utilisateur précise "(recette)" à côté d'un aliment, passe la valeur `is_recipe` à `true` pour cet aliment, et retire la mention "(recette)" de son nom. Sinon laisse à `false`.
-        Réponds UNIQUEMENT au format JSON en respectant le schéma demandé.
+        CREATION DE RECETTE : Si le message indique qu'il faut créer une recette (ex: "Nouvelle recette : Gâteau au chocolat", "Créer recette"), passe `is_creation_recette` à `true`, extrait le nom dans `nom_recette` et le nombre de portions dans `portions`. Les aliments seront alors les ingrédients de la recette.
+        
+        Tu DOIS répondre UNIQUEMENT sous forme d'un objet JSON respectant exactement le schéma Pydantic suivant :
+        {RepasAnalysis.model_json_schema()}
         """
-        
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            contents=prompt,
-            config=genai.types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=RepasAnalysis
-            )
-        )
-        
-        return RepasAnalysis.model_validate_json(response.text)
-        
+        return self._call_api(prompt)
+
     def analyze_image(self, image_data: bytes, mime_type: str, text: str = "", local_time: str = None) -> RepasAnalysis:
         """
         Analyzes an image of a meal, optionally assisted by user text.
         Extracts food items from the visual content and estimates their nutritional values.
         """
+        base64_image = base64.b64encode(image_data).decode("utf-8")
+        image_part = {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:{mime_type};base64,{base64_image}"
+            }
+        }
+
         prompt = f"""
         Tu es un expert en nutrition. L'utilisateur a pris une photo de son repas.
         {f'Il a ajouté le commentaire suivant : "{text}"' if text else ''}
@@ -72,24 +108,12 @@ class GeminiService:
         Déduis le type de repas (breakfast, lunch, snack, dinner) en fonction de l'heure ou des aliments.
         ATTENTION : Si l'utilisateur précise explicitement le type de repas dans son message (ex: "petit déjeuner", "déjeuner", "dîner", "snack", "goûter"), tu DOIS utiliser cette information en priorité absolue.
         ATTENTION RECETTE : Si l'utilisateur précise "(recette)" à côté d'un aliment, passe la valeur `is_recipe` à `true` pour cet aliment, et retire la mention "(recette)" de son nom. Sinon laisse à `false`.
-        Réponds UNIQUEMENT au format JSON en respectant le schéma demandé.
+        CREATION DE RECETTE : Si le message indique qu'il faut créer une recette (ex: "Nouvelle recette : Gâteau au chocolat", "Créer recette"), passe `is_creation_recette` à `true`, extrait le nom dans `nom_recette` et le nombre de portions dans `portions`. Les aliments seront alors les ingrédients de la recette.
+        
+        Tu DOIS répondre UNIQUEMENT sous forme d'un objet JSON respectant exactement le schéma Pydantic suivant :
+        {RepasAnalysis.model_json_schema()}
         """
-        
-        image_part = genai.types.Part.from_bytes(
-            data=image_data,
-            mime_type=mime_type,
-        )
-        
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            contents=[prompt, image_part],
-            config=genai.types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=RepasAnalysis
-            )
-        )
-        
-        return RepasAnalysis.model_validate_json(response.text)
+        return self._call_api(prompt, image_part)
 
     def analyze_correction(self, original_analysis: RepasAnalysis, correction: str, local_time: str = None) -> RepasAnalysis:
         """
@@ -109,16 +133,9 @@ class GeminiService:
         Conserve ou adapte le type de repas (breakfast, lunch, snack, dinner). 
         ATTENTION : Si l'utilisateur précise explicitement le type de repas dans sa correction (ex: "C'est un petit déjeuner", "dîner", etc.), tu DOIS mettre à jour le type de repas.
         ATTENTION RECETTE : Si l'utilisateur précise "(recette)" à côté d'un aliment corrigé ou ajouté, passe la valeur `is_recipe` à `true` pour cet aliment, et retire la mention "(recette)" de son nom.
-        Réponds UNIQUEMENT au format JSON en respectant le schéma demandé.
+        CREATION DE RECETTE : Si la correction indique qu'il s'agit finalement d'une création de recette, passe `is_creation_recette` à `true` et ajuste `nom_recette` et `portions`.
+        
+        Tu DOIS répondre UNIQUEMENT sous forme d'un objet JSON respectant exactement le schéma Pydantic suivant :
+        {RepasAnalysis.model_json_schema()}
         """
-        
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            contents=prompt,
-            config=genai.types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=RepasAnalysis
-            )
-        )
-        
-        return RepasAnalysis.model_validate_json(response.text)
+        return self._call_api(prompt)

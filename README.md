@@ -1,6 +1,6 @@
 # 🍏 Yazio AI Tracker (avec n8n & Telegram)
 
-Ce projet permet de transformer un simple bot Telegram en un véritable assistant nutritionnel. Vous prenez une photo de votre repas ou décrivez ce que vous mangez par texte, et le système s'occupe de l'analyser (via Google Gemini AI) et de l'enregistrer automatiquement dans votre journal alimentaire **Yazio**.
+Ce projet permet de transformer un simple bot Telegram en un véritable assistant nutritionnel. Vous prenez une photo de votre repas ou décrivez ce que vous mangez par texte, et le système s'occupe de l'analyser (via l'API de Mammouth AI) et de l'enregistrer automatiquement dans votre journal alimentaire **Yazio**.
 
 Il gère même vos **recettes personnelles Yazio** !
 
@@ -9,7 +9,7 @@ Il gère même vos **recettes personnelles Yazio** !
 Le projet est composé de 3 briques principales :
 1. **Telegram** : L'interface utilisateur pour envoyer les textes, les photos et les corrections.
 2. **n8n** : Le chef d'orchestre (workflow) qui relie Telegram et l'API Python.
-3. **L'API Python (FastAPI)** : Le cœur du système qui contient ce code source. Elle interroge l'API de Google Gemini (version 2.5 Flash Lite) pour estimer les calories/grammes, recherche les produits dans Yazio, et enregistre les repas.
+3. **L'API Python (FastAPI)** : Le cœur du système qui contient ce code source. Elle interroge l'API de Mammouth AI (modèle gemini-2.5-flash-lite par défaut) pour estimer les calories/grammes, recherche les produits dans Yazio, et enregistre les repas.
 
 ## 🚀 Installation & Lancement
 
@@ -22,7 +22,7 @@ cp .env.example .env
 ```
 Assurez-vous d'avoir :
 - L'email et le mot de passe de votre compte Yazio (pour que le script s'y connecte de manière invisible).
-- Une clé API Google Gemini (disponible gratuitement sur Google AI Studio).
+- Une clé API Mammouth AI.
 
 ### 2. Lancement avec Docker
 ```bash

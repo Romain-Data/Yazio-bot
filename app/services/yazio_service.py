@@ -212,3 +212,69 @@ class YazioService:
         
         if not response.ok:
             raise Exception(f"Failed to log recipe: {response.text}")
+
+    def create_recipe(self, name: str, portion_count: int, aliments: list) -> None:
+        """Create a new recipe in Yazio."""
+        token = self.authenticate()
+        
+        recipe_nutrients = {
+            "energy.energy": 0.0,
+            "nutrient.fat": 0.0,
+            "nutrient.protein": 0.0,
+            "nutrient.carb": 0.0
+        }
+        
+        servings = []
+        
+        for aliment in aliments:
+            search_res = self.search_products(aliment.nom)
+            if not search_res:
+                continue
+                
+            best_match = search_res[0]
+            product_id = best_match["product_id"]
+            nutrients = best_match.get("nutrients", {})
+            
+            for k in recipe_nutrients.keys():
+                if k in nutrients:
+                    recipe_nutrients[k] += nutrients[k] * aliment.quantite_g
+                    
+            servings.append({
+                "name": best_match["name"],
+                "amount": float(aliment.quantite_g),
+                "serving": "gram",
+                "serving_quantity": float(aliment.quantite_g),
+                "base_unit": "g",
+                "product_id": product_id
+            })
+            
+        if len(servings) < 2:
+            raise Exception("A Yazio recipe must contain at least 2 valid ingredients. We found: " + str([s["name"] for s in servings]))
+            
+        payload = {
+            "id": str(uuid.uuid4()),
+            "name": name or "Recette personnalisée",
+            "portion_count": portion_count or 1,
+            "nutrients": recipe_nutrients,
+            "servings": servings
+        }
+        
+        response = requests.post(
+            f"{YAZIO_BASE_URL}/user/recipes",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+        )
+        
+        if not response.ok:
+            raise Exception(f"Failed to create recipe: {response.text}")
+            
+        # Invalidate cache
+        if os.path.exists(self.cache_file):
+            try:
+                os.remove(self.cache_file)
+            except Exception:
+                pass
+
