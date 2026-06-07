@@ -86,7 +86,14 @@ async def log_food(request: LogFoodRequest):
         if request.analysis.is_creation_recette:
             recipe_name = request.analysis.nom_recette or "Recette personnalisée"
             portions = request.analysis.portions or 1
-            yazio_service.create_recipe(recipe_name, portions, request.analysis.aliments)
+            macros = yazio_service.create_recipe(recipe_name, portions, request.analysis.aliments)
+            
+            kcal_p = round(macros.get("energy.energy", 0) / portions)
+            prot_p = round(macros.get("nutrient.protein", 0) / portions, 1)
+            gluc_p = round(macros.get("nutrient.carb", 0) / portions, 1)
+            lip_p = round(macros.get("nutrient.fat", 0) / portions, 1)
+            
+            macro_str = f"Créée avec succès ({portions} portion(s) - 1 part = {kcal_p} kcal | P:{prot_p}g | G:{gluc_p}g | L:{lip_p}g)"
             
             return {
                 "status": "success",
@@ -94,7 +101,7 @@ async def log_food(request: LogFoodRequest):
                     {
                         "aliment": f"Recette : {recipe_name}",
                         "status": "logged",
-                        "yazio_name": f"Créée avec succès ({portions} portion(s))",
+                        "yazio_name": macro_str,
                         "type": "recette créée"
                     }
                 ]

@@ -213,7 +213,7 @@ class YazioService:
         if not response.ok:
             raise Exception(f"Failed to log recipe: {response.text}")
 
-    def create_recipe(self, name: str, portion_count: int, aliments: list) -> None:
+    def create_recipe(self, name: str, portion_count: int, aliments: list) -> dict:
         """Create a new recipe in Yazio."""
         token = self.authenticate()
         
@@ -277,4 +277,6 @@ class YazioService:
                 os.remove(self.cache_file)
             except Exception:
                 pass
+                
+        return recipe_nutrients
 
