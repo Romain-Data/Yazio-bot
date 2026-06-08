@@ -1,5 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
+import os
+import json
 from typing import Optional
 from app.services.mammouth_service import MammouthService, RepasAnalysis
 from app.services.yazio_service import YazioService
@@ -83,6 +85,35 @@ async def log_food(request: LogFoodRequest):
     Distinguishes between personal recipes and generic products.
     """
     try:
+        if request.analysis.is_creation_equivalence:
+            eq_key = request.analysis.equivalence_key or "Inconnu"
+            eq_val = request.analysis.equivalence_value or "0g"
+            
+            weights_file = os.path.join(os.path.dirname(__file__), "data", "custom_weights.json")
+            data = {}
+            if os.path.exists(weights_file):
+                try:
+                    with open(weights_file, "r") as f:
+                        data = json.load(f)
+                except Exception:
+                    pass
+            
+            data[eq_key] = eq_val
+            
+            with open(weights_file, "w") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+                
+            return {
+                "status": "success",
+                "results": [
+                    {
+                        "aliment": f"Équivalence : {eq_key}",
+                        "status": "logged",
+                        "yazio_name": f"Ajoutée avec succès ({eq_val})",
+                        "type": "equivalence créée"
+                    }
+                ]
+            }
         if request.analysis.is_creation_recette:
             recipe_name = request.analysis.nom_recette or "Recette personnalisée"
             portions = request.analysis.portions or 1

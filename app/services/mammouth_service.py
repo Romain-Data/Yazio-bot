@@ -1,5 +1,7 @@
 import base64
 import os
+import json
+import requests
 import requests
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -25,6 +27,9 @@ class RepasAnalysis(BaseModel):
     is_creation_recette: bool = Field(default=False, description="True si l'utilisateur demande explicitement de créer une NOUVELLE recette")
     nom_recette: Optional[str] = Field(default=None, description="Nom de la nouvelle recette à créer (ex: 'Gâteau au chocolat')")
     portions: int = Field(default=1, description="Nombre de portions de la recette si précisé (sinon 1)")
+    is_creation_equivalence: bool = Field(default=False, description="True si l'utilisateur demande d'ajouter une équivalence de poids (ex: 'Nouvelle équivalence : 1 tranche de jambon 40g')")
+    equivalence_key: Optional[str] = Field(default=None, description="L'aliment et l'unité pour l'équivalence (ex: '1 tranche de jambon')")
+    equivalence_value: Optional[str] = Field(default=None, description="Le poids en grammes pour l'équivalence (ex: '40g')")
 
 
 class MammouthService:
@@ -34,6 +39,18 @@ class MammouthService:
             raise ValueError("MAMMOUTH_API_KEY must be set in the environment.")
         self.api_url = "https://api.mammouth.ai/v1/chat/completions"
         self.model_id = os.getenv("MAMMOUTH_MODEL_ID", "gemini-2.5-flash-lite")
+        self.custom_weights_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "custom_weights.json")
+
+    def _load_custom_weights(self) -> str:
+        if os.path.exists(self.custom_weights_file):
+            try:
+                with open(self.custom_weights_file, "r") as f:
+                    data = json.load(f)
+                    if data:
+                        return json.dumps(data, ensure_ascii=False)
+            except Exception:
+                pass
+        return "{}"
 
     def _call_api(self, prompt: str, image_part: dict = None) -> RepasAnalysis:
         headers = {
@@ -79,6 +96,12 @@ class MammouthService:
         ATTENTION : Si l'utilisateur précise explicitement le type de repas dans son message (ex: "petit déjeuner", "déjeuner", "dîner", "snack", "goûter"), tu DOIS utiliser cette information en priorité absolue.
         ATTENTION RECETTE : Si l'utilisateur précise "(recette)" à côté d'un aliment, passe la valeur `is_recipe` à `true` pour cet aliment, et retire la mention "(recette)" de son nom. Sinon laisse à `false`.
         CREATION DE RECETTE : Si le message indique qu'il faut créer une recette (ex: "Nouvelle recette : Gâteau au chocolat", "Créer recette"), passe `is_creation_recette` à `true`, extrait le nom dans `nom_recette` et le nombre de portions dans `portions`. Les aliments seront alors les ingrédients de la recette.
+        CREATION EQUIVALENCE : Si le message indique qu'il faut créer une nouvelle équivalence de poids (ex: "Nouvelle équivalence : 1 tranche de jambon 40g"), passe `is_creation_equivalence` à `true`, extrait l'aliment dans `equivalence_key` et le poids dans `equivalence_value`.
+        
+        EQUIVALENCES DE POIDS PERSONNALISÉES (TRÈS IMPORTANT) :
+        Voici une table de correspondance de poids que tu DOIS ABSOLUMENT utiliser pour tes conversions si l'aliment correspond sémantiquement.
+        Cependant, si l'utilisateur précise un poids exact en grammes dans son message (ex: "jambon 60g"), ce poids exact a toujours la priorité absolue sur la table.
+        {self._load_custom_weights()}
         
         Tu DOIS répondre UNIQUEMENT sous forme d'un objet JSON respectant exactement le schéma Pydantic suivant :
         {RepasAnalysis.model_json_schema()}
@@ -109,6 +132,12 @@ class MammouthService:
         ATTENTION : Si l'utilisateur précise explicitement le type de repas dans son message (ex: "petit déjeuner", "déjeuner", "dîner", "snack", "goûter"), tu DOIS utiliser cette information en priorité absolue.
         ATTENTION RECETTE : Si l'utilisateur précise "(recette)" à côté d'un aliment, passe la valeur `is_recipe` à `true` pour cet aliment, et retire la mention "(recette)" de son nom. Sinon laisse à `false`.
         CREATION DE RECETTE : Si le message indique qu'il faut créer une recette (ex: "Nouvelle recette : Gâteau au chocolat", "Créer recette"), passe `is_creation_recette` à `true`, extrait le nom dans `nom_recette` et le nombre de portions dans `portions`. Les aliments seront alors les ingrédients de la recette.
+        CREATION EQUIVALENCE : Si le message indique qu'il faut créer une nouvelle équivalence de poids, passe `is_creation_equivalence` à `true`, extrait l'aliment dans `equivalence_key` et le poids dans `equivalence_value`.
+        
+        EQUIVALENCES DE POIDS PERSONNALISÉES (TRÈS IMPORTANT) :
+        Voici une table de correspondance de poids que tu DOIS ABSOLUMENT utiliser pour tes conversions si l'aliment correspond sémantiquement.
+        Cependant, si l'utilisateur précise un poids exact en grammes dans son message (ex: "jambon 60g"), ce poids exact a toujours la priorité absolue sur la table.
+        {self._load_custom_weights()}
         
         Tu DOIS répondre UNIQUEMENT sous forme d'un objet JSON respectant exactement le schéma Pydantic suivant :
         {RepasAnalysis.model_json_schema()}
@@ -134,6 +163,12 @@ class MammouthService:
         ATTENTION : Si l'utilisateur précise explicitement le type de repas dans sa correction (ex: "C'est un petit déjeuner", "dîner", etc.), tu DOIS mettre à jour le type de repas.
         ATTENTION RECETTE : Si l'utilisateur précise "(recette)" à côté d'un aliment corrigé ou ajouté, passe la valeur `is_recipe` à `true` pour cet aliment, et retire la mention "(recette)" de son nom.
         CREATION DE RECETTE : Si la correction indique qu'il s'agit finalement d'une création de recette, passe `is_creation_recette` à `true` et ajuste `nom_recette` et `portions`.
+        CREATION EQUIVALENCE : Si le message indique qu'il faut créer une nouvelle équivalence de poids, passe `is_creation_equivalence` à `true`.
+        
+        EQUIVALENCES DE POIDS PERSONNALISÉES (TRÈS IMPORTANT) :
+        Voici une table de correspondance de poids que tu DOIS ABSOLUMENT utiliser pour tes conversions si l'aliment correspond sémantiquement.
+        Cependant, si l'utilisateur précise un poids exact en grammes dans sa correction (ex: "jambon 60g"), ce poids exact a toujours la priorité absolue sur la table.
+        {self._load_custom_weights()}
         
         Tu DOIS répondre UNIQUEMENT sous forme d'un objet JSON respectant exactement le schéma Pydantic suivant :
         {RepasAnalysis.model_json_schema()}
