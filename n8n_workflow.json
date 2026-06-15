@@ -187,7 +187,7 @@
     {
       "parameters": {
         "chatId": "={{ $json.chat_id }}",
-        "text": "==🍝 Repas détecté : {{ $json.repas }}\n\nCalories totales : {{ $json.total_kcal }} kcal\nProtéines : {{ $json.total_proteines }} g\nGlucides : {{ $json.total_glucides }} g\nLipides : {{ $json.total_lipides }} g\n\nAliments trouvés :\n{{ $json.aliments.map(a => `- ${a.quantite_g}g de ${a.nom} (${a.kcal} kcal)`).join('\\n') }}",
+        "text": "==🍝 Repas détecté : {{ $json.repas }}\n\nCalories totales : {{ $json.total_kcal }} kcal\nProtéines : {{ $json.total_proteines }} g\nGlucides : {{ $json.total_glucides }} g\nLipides : {{ $json.total_lipides }} g\n\nAliments détectés par Yazio :\n{{ $json.aliments.map(a => `- ${a.yazio_name || a.nom} (${a.quantite_g}g - ${a.kcal} kcal)`).join('\\n') }}",
         "replyMarkup": "inlineKeyboard",
         "inlineKeyboard": {
           "rows": [
@@ -211,7 +211,9 @@
             }
           ]
         },
-        "additionalFields": {}
+        "additionalFields": {
+          "appendAttribution": false
+        }
       },
       "id": "96e063c2-fc02-4be1-bece-df62962dc15e",
       "name": "Envoyer Résumé + Boutons",
@@ -295,7 +297,9 @@
       "parameters": {
         "chatId": "={{ $('Telegram Trigger').item.json.callback_query.message.chat.id }}",
         "text": "={{ (() => { const results = $json.results || []; const isEq = results.some(r => r.type === 'equivalence créée'); const isRec = results.some(r => r.type === 'recette créée'); let headerEmoji = '✅'; let headerText = 'Succès ! Les aliments ont été loggés dans ton journal Yazio.'; if (isEq) { headerEmoji = '✏️'; headerText = 'Nouvelle équivalence enregistrée !'; } else if (isRec) { headerEmoji = '🍳'; headerText = 'Recette bien enregistrée !'; } const detail = results.map(r => { if (r.status !== 'logged') return `❌ ${r.aliment} -> Non trouvé`; return `${r.aliment} -> ${r.yazio_name}`; }).join('\\n'); return `${headerEmoji} ${headerText}\\n\\nRésultat détaillé :\\n${detail}`; })() }}",
-        "additionalFields": {}
+        "additionalFields": {
+          "appendAttribution": false
+        }
       },
       "id": "cdf7908a-01e9-442d-95be-adfecd93a7bf",
       "name": "Envoyer Confirmation",
@@ -319,7 +323,9 @@
         "text": "Que veux-tu corriger ?\n(Ex: \"Enlève le beurre\", \"C'était 200g de pâtes\")",
         "replyMarkup": "forceReply",
         "forceReply": {},
-        "additionalFields": {}
+        "additionalFields": {
+          "appendAttribution": false
+        }
       },
       "id": "7972af39-7fd6-4b7b-a603-b0aa8541d106",
       "name": "Demander Correction",

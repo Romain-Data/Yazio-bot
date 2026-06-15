@@ -15,6 +15,7 @@ class Aliment(BaseModel):
     glucides: float = Field(description="Glucides en grammes pour cette quantité")
     lipides: float = Field(description="Lipides en grammes pour cette quantité")
     is_recipe: bool = Field(default=False, description="True si l'utilisateur a précisé '(recette)' à côté de cet aliment")
+    yazio_name: Optional[str] = Field(default=None, description="Nom officiel trouvé dans Yazio")
 
 
 class RepasAnalysis(BaseModel):

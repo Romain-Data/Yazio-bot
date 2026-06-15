@@ -13,6 +13,26 @@ mammouth_service = MammouthService()
 yazio_service = YazioService()
 
 
+def enrich_with_yazio(analysis: RepasAnalysis) -> RepasAnalysis:
+    if analysis.is_creation_recette or analysis.is_creation_equivalence:
+        return analysis
+
+    for aliment in analysis.aliments:
+        if getattr(aliment, "is_recipe", False):
+            recipe_match = yazio_service.search_recipe(aliment.nom)
+            if recipe_match:
+                aliment.yazio_name = recipe_match["name"]
+            else:
+                aliment.yazio_name = "Recette non trouvée"
+        else:
+            search_res = yazio_service.search_products(aliment.nom)
+            if search_res:
+                aliment.yazio_name = search_res[0]["name"]
+            else:
+                aliment.yazio_name = "Produit non trouvé"
+    return analysis
+
+
 class TextAnalyzeRequest(BaseModel):
     text: str
     local_time: Optional[str] = None
@@ -35,7 +55,8 @@ async def analyze_text(request: TextAnalyzeRequest):
     Returns the estimated nutritional values and the type of meal.
     """
     try:
-        return mammouth_service.analyze_text(request.text, request.local_time)
+        analysis = mammouth_service.analyze_text(request.text, request.local_time)
+        return enrich_with_yazio(analysis)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -57,7 +78,8 @@ async def analyze_image(
             raise HTTPException(status_code=422, detail="No image file provided in 'file' or 'data' field.")
 
         content = await uploaded_file.read()
-        return mammouth_service.analyze_image(content, uploaded_file.content_type, text, local_time)
+        analysis = mammouth_service.analyze_image(content, uploaded_file.content_type, text, local_time)
+        return enrich_with_yazio(analysis)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -69,11 +91,12 @@ async def analyze_correction(request: CorrectionRequest):
     For example: "I actually ate 200g of pasta, not 100g."
     """
     try:
-        return mammouth_service.analyze_correction(
+        analysis = mammouth_service.analyze_correction(
             request.original_analysis,
             request.correction,
             request.local_time
         )
+        return enrich_with_yazio(analysis)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
