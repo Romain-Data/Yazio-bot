@@ -187,7 +187,7 @@
     {
       "parameters": {
         "chatId": "={{ $json.chat_id }}",
-        "text": "==🍝 Repas détecté : {{ $json.repas }}\n\nCalories totales : {{ $json.total_kcal }} kcal\nProtéines : {{ $json.total_proteines }} g\nGlucides : {{ $json.total_glucides }} g\nLipides : {{ $json.total_lipides }} g\n\nAliments détectés par Yazio :\n{{ $json.aliments.map(a => `- ${a.yazio_name || a.nom} (${a.quantite_g}g - ${a.kcal} kcal)`).join('\\n') }}",
+        "text": "= Repas détecté : {{ $json.repas }}\n\nCalories totales : {{ $json.total_kcal }} kcal\nProtéines : {{ $json.total_proteines }} g\nGlucides : {{ $json.total_glucides }} g\nLipides : {{ $json.total_lipides }} g\n\nAliments détectés par Yazio :\n{{ $json.aliments.map(a => `- ${a.yazio_name || a.nom} (${a.quantite_g}g - ${a.kcal} kcal)`).join('\\n') }}",
         "replyMarkup": "inlineKeyboard",
         "inlineKeyboard": {
           "rows": [
