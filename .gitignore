@@ -11,7 +11,7 @@ wheels/
 
 # Secrets & Environment variables
 .env
-.env.*
+.env
 
 # OS generated files
 .DS_Store
