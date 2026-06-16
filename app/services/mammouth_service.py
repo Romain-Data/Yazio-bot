@@ -4,9 +4,11 @@ import json
 import requests
 import requests
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List
 
 
+# Note : Les descriptions des champs (Field) sont délibérément en français
+# pour optimiser les performances de compréhension et de génération de l'IA.
 class Aliment(BaseModel):
     nom: str = Field(description="Nom usuel de l'aliment")
     quantite_g: float = Field(description="Quantité estimée en grammes")
@@ -15,7 +17,7 @@ class Aliment(BaseModel):
     glucides: float = Field(description="Glucides en grammes pour cette quantité")
     lipides: float = Field(description="Lipides en grammes pour cette quantité")
     is_recipe: bool = Field(default=False, description="True si l'utilisateur a précisé '(recette)' à côté de cet aliment")
-    yazio_name: Optional[str] = Field(default=None, description="Nom officiel trouvé dans Yazio")
+    yazio_name: str | None = Field(default=None, description="Nom officiel trouvé dans Yazio")
 
 
 class RepasAnalysis(BaseModel):
@@ -26,11 +28,11 @@ class RepasAnalysis(BaseModel):
     total_glucides: float = Field(description="Total des glucides")
     total_lipides: float = Field(description="Total des lipides")
     is_creation_recette: bool = Field(default=False, description="True si l'utilisateur demande explicitement de créer une NOUVELLE recette")
-    nom_recette: Optional[str] = Field(default=None, description="Nom de la nouvelle recette à créer (ex: 'Gâteau au chocolat')")
+    nom_recette: str | None = Field(default=None, description="Nom de la nouvelle recette à créer (ex: 'Gâteau au chocolat')")
     portions: int = Field(default=1, description="Nombre de portions de la recette si précisé (sinon 1)")
     is_creation_equivalence: bool = Field(default=False, description="True si l'utilisateur demande d'ajouter une équivalence de poids (ex: 'Nouvelle équivalence : 1 tranche de jambon 40g')")
-    equivalence_key: Optional[str] = Field(default=None, description="L'aliment et l'unité pour l'équivalence (ex: '1 tranche de jambon')")
-    equivalence_value: Optional[str] = Field(default=None, description="Le poids en grammes pour l'équivalence (ex: '40g')")
+    equivalence_key: str | None = Field(default=None, description="L'aliment et l'unité pour l'équivalence (ex: '1 tranche de jambon')")
+    equivalence_value: str | None = Field(default=None, description="Le poids en grammes pour l'équivalence (ex: '40g')")
 
 
 class MammouthService:
@@ -52,6 +54,23 @@ class MammouthService:
             except Exception:
                 pass
         return "{}"
+
+    def save_custom_weight(self, eq_key: str, eq_val: str) -> None:
+        """Saves a custom weight equivalence to the JSON file."""
+        data = {}
+        if os.path.exists(self.custom_weights_file):
+            try:
+                with open(self.custom_weights_file, "r") as f:
+                    data = json.load(f)
+            except Exception:
+                pass
+        
+        data[eq_key] = eq_val
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(self.custom_weights_file), exist_ok=True)
+        with open(self.custom_weights_file, "w") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
     def _call_api(self, prompt: str, image_part: dict = None) -> RepasAnalysis:
         headers = {

@@ -5,9 +5,11 @@ import uuid
 import json
 import difflib
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import List, Dict, Any
 
 YAZIO_BASE_URL = "https://yzapi.yazio.com/v15"
+
+# Yazio Official Client App Credentials (Non-Personal)
 YAZIO_CLIENT_ID = "1_4hiybetvfksgw40o0sog4s884kwc840wwso8go4k8c04goo4c"
 YAZIO_CLIENT_SECRET = "6rok2m65xuskgkgogw40wkkk8sw0osg84s8cggsc4woos4s8o"
 
@@ -15,7 +17,7 @@ class YazioService:
     def __init__(self):
         self.email = os.getenv("YAZIO_EMAIL")
         self.password = os.getenv("YAZIO_PASSWORD")
-        self.access_token: Optional[str] = None
+        self.access_token: str | None = None
         self.token_expires_at: float = 0
         self.cache_file = "/tmp/yazio_recipes_cache_v3.json"
 
@@ -105,7 +107,7 @@ class YazioService:
             
         return recipes_map
 
-    def search_recipe(self, query: str, force_refresh: bool = False) -> Optional[Dict[str, Any]]:
+    def search_recipe(self, query: str, force_refresh: bool = False) -> Dict[str, Any] | None:
         """
         Search for a personal recipe in the local cache using fuzzy matching.
         If no matches are found, it triggers a cache refresh and tries again.
