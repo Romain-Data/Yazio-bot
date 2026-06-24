@@ -2,13 +2,12 @@ import base64
 import os
 import json
 import requests
-import requests
 from pydantic import BaseModel, Field
 from typing import List
 
 
-# Note : Les descriptions des champs (Field) sont délibérément en français
-# pour optimiser les performances de compréhension et de génération de l'IA.
+# Note: The field descriptions are deliberately in French
+# to optimize the performance of AI comprehension and generation.
 class Aliment(BaseModel):
     nom: str = Field(description="Nom usuel de l'aliment")
     quantite_g: float = Field(description="Quantité estimée en grammes")
@@ -54,23 +53,6 @@ class MammouthService:
             except Exception:
                 pass
         return "{}"
-
-    def save_custom_weight(self, eq_key: str, eq_val: str) -> None:
-        """Saves a custom weight equivalence to the JSON file."""
-        data = {}
-        if os.path.exists(self.custom_weights_file):
-            try:
-                with open(self.custom_weights_file, "r") as f:
-                    data = json.load(f)
-            except Exception:
-                pass
-        
-        data[eq_key] = eq_val
-        
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(self.custom_weights_file), exist_ok=True)
-        with open(self.custom_weights_file, "w") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
 
     def _call_api(self, prompt: str, image_part: dict = None) -> RepasAnalysis:
         headers = {

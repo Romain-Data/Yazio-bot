@@ -1,7 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
-import os
-import json
 from app.services.mammouth_service import MammouthService, RepasAnalysis
 from app.services.yazio_service import YazioService
 
