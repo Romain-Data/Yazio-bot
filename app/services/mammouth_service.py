@@ -72,10 +72,11 @@ class MammouthService:
                     "content": content_list
                 }
             ],
-            "response_format": {"type": "json_object"}
+            "response_format": {"type": "json_object"},
+            "max_tokens": 4096
         }
 
-        response = requests.post(self.api_url, headers=headers, json=payload)
+        response = requests.post(self.api_url, headers=headers, json=payload, timeout=60)
         response.raise_for_status()
 
         result_data = response.json()
