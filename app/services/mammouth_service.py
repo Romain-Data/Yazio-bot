@@ -76,12 +76,22 @@ class MammouthService:
             "max_tokens": 4096
         }
 
-        response = requests.post(self.api_url, headers=headers, json=payload, timeout=60)
-        response.raise_for_status()
+        max_retries = 3
+        last_exception = None
 
-        result_data = response.json()
-        content = result_data["choices"][0]["message"]["content"]
-        return RepasAnalysis.model_validate_json(content)
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(self.api_url, headers=headers, json=payload, timeout=60)
+                response.raise_for_status()
+
+                result_data = response.json()
+                content = result_data["choices"][0]["message"]["content"]
+                return RepasAnalysis.model_validate_json(content)
+            except Exception as e:
+                last_exception = e  # Keep track of the last error to raise if all retries fail
+                print(f"Attempt {attempt + 1}/{max_retries} failed with error: {e}")
+
+        raise last_exception
 
     def analyze_text(self, text: str, local_time: str = None) -> RepasAnalysis:
         """
