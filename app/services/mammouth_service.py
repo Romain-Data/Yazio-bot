@@ -127,10 +127,13 @@ class MammouthService:
         - Passer `is_activity` à `true`.
         - Extraire le nom descriptif de l'activité dans `nom_activite` (ex: "Jeu piscine avec enfants", "Entraînement de tennis", "Footing").
         - Extraire ou estimer la durée de l'activité en minutes dans `duree_minutes` (ex: 180, 90, 30).
-        - Estimer la dépense calorique dans `calories_brules` (en te basant sur des équivalences de dépenses métaboliques standards pour un adulte d'environ 75 kg).
+        - Estimer la dépense calorique dans `calories_brules` de manière TRÈS PRUDENTE et réaliste (pour un adulte de 75 kg) en respectant les repères suivants :
+          * Activité faible / de loisir (ex: jouer dans l'eau avec des enfants, marche tranquille, rangement/jardinage) : environ 2,5 à 3 kcal/min (soit ~150-180 kcal/heure). Par exemple, pour 3h de jeu en piscine, cela représente environ 400 à 450 kcal maximum (en comptant les pauses).
+          * Activité modérée (ex: tennis de table, vélo tranquille, jeux de ballons actifs) : environ 5 à 6 kcal/min (soit ~300-360 kcal/heure).
+          * Activité intense / sport soutenu (ex: tennis match, footing, natation active continue) : environ 8 à 10 kcal/min (soit ~480-600 kcal/heure).
+        - Si la description contient des termes flous quant à l'intensité ou les conditions (ex: "piscine avec les enfants", "vélo en famille"), tu DOIS impérativement poser jusqu'à 3 questions courtes et polies dans la liste `questions` pour affiner (ex: "S'agissait-il de natation continue ou plutôt de jeux calmes dans l'eau ?", "Y a-t-il eu des temps de repos durant ces 3 heures ?") ET retenir l'estimation basse par défaut.
         - Laisser la liste `aliments` vide.
         - Positionner `repas` à "snack" et mettre les totaux nutritionnels (`total_kcal`, `total_proteines`, `total_glucides`, `total_lipides`) à 0.
-        - Rédiger dans la liste `questions` jusqu'à 3 questions ciblées et courtes en français pour affiner l'intensité ou les conditions de l'activité si nécessaire (ex: "L'intensité était-elle plutôt modérée ou intense ?", "Était-ce de la nage active ou des jeux d'eau ?"). Laisse la liste vide si le contexte est déjà très clair.
 
 
         
@@ -210,7 +213,7 @@ class MammouthService:
         ESTIMATION GLOBALE (AJOUT RAPIDE) : Si la correction indique qu'il s'agit d'une estimation globale (ou si l'analyse originale était une estimation et qu'on la corrige), conserve ou passe `is_estimation` à `true`, et ajuste `nom_estimation` et les valeurs nutritionnelles associées. Dans ce cas, la liste `aliments` doit contenir un unique aliment représentant cette estimation globale.
         - De plus, si l'utilisateur a répondu aux questions d'affinage précédentes dans son message de correction, prends en compte ses réponses pour affiner les calories et macros, puis retire ces questions résolues de la liste `questions`. S'il reste des incertitudes majeures, tu peux formuler de nouvelles questions d'affinage (maximum 3 au total). Si l'estimation est désormais assez précise, laisse la liste `questions` vide.
         
-        ACTIVITÉ PHYSIQUE : Si la correction concerne une activité physique, ou si l'analyse originale concernait une activité physique et qu'on la corrige, conserve `is_activity` à `true`. Ajuste `nom_activite`, `duree_minutes` et `calories_brules` en fonction des réponses ou corrections de l'utilisateur. Si l'utilisateur a répondu aux questions d'affinage précédentes pour l'activité, prends en compte ses réponses pour affiner la dépense calorique (par exemple en fonction de l'intensité décrite), puis retire ces questions résolues de la liste `questions`. S'il reste des incertitudes majeures, tu peux formuler de nouvelles questions d'affinage (maximum 3 au total). Si l'estimation est désormais assez précise, laisse la liste `questions` vide.
+        ACTIVITÉ PHYSIQUE : Si la correction concerne une activité physique, ou si l'analyse originale concernait une activité physique et qu'on la corrige, conserve `is_activity` à `true`. Ajuste `nom_activite`, `duree_minutes` et `calories_brules` en fonction des réponses ou corrections de l'utilisateur, en restant très réaliste et prudent (ex: 2.5-3 kcal/min pour loisir/jeux piscine, 5-6 kcal/min pour modéré, 8-10 kcal/min pour intense). Si l'utilisateur a répondu aux questions d'affinage précédentes pour l'activité (comme confirmer le niveau d'intensité ou les temps de pause), prends en compte ses réponses pour ajuster la dépense calorique de manière précise, puis retire ces questions résolues de la liste `questions`. S'il reste des incertitudes majeures, tu peux formuler de nouvelles questions d'affinage (maximum 3 au total). Si l'estimation est désormais assez précise, laisse la liste `questions` vide.
 
         
         EQUIVALENCES DE POIDS PERSONNALISÉES (TRÈS IMPORTANT) :
