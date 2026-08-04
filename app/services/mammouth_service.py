@@ -32,6 +32,9 @@ class RepasAnalysis(BaseModel):
     is_creation_equivalence: bool = Field(default=False, description="True si l'utilisateur demande d'ajouter une équivalence de poids (ex: 'Nouvelle équivalence : 1 tranche de jambon 40g')")
     equivalence_key: str | None = Field(default=None, description="L'aliment et l'unité pour l'équivalence (ex: '1 tranche de jambon')")
     equivalence_value: str | None = Field(default=None, description="Le poids en grammes pour l'équivalence (ex: '40g')")
+    is_estimation: bool = Field(default=False, description="True si l'utilisateur demande une estimation globale (lorsqu'il ne peut pas décrire précisément ingrédient par ingrédient ce qu'il y a dans son assiette, ou si la description est trop globale)")
+    nom_estimation: str | None = Field(default=None, description="Nom descriptif global du repas estimé (ex: 'Pâtes carbonara au restaurant')")
+    questions: List[str] = Field(default=[], description="Jusqu'à 3 questions courtes pour affiner l'estimation globale si nécessaire")
 
 
 class MammouthService:
@@ -110,6 +113,11 @@ class MammouthService:
         ATTENTION RECETTE : Si l'utilisateur précise "(recette)" à côté d'un aliment, passe la valeur `is_recipe` à `true` pour cet aliment, et retire la mention "(recette)" de son nom. Sinon laisse à `false`.
         CREATION DE RECETTE : Si le message indique qu'il faut créer une recette (ex: "Nouvelle recette : Gâteau au chocolat", "Créer recette"), passe `is_creation_recette` à `true`, extrait le nom dans `nom_recette` et le nombre de portions dans `portions`. Les aliments seront alors les ingrédients de la recette.
         CREATION EQUIVALENCE : Si le message indique qu'il faut créer une nouvelle équivalence de poids (ex: "Nouvelle équivalence : 1 tranche de jambon 40g"), passe `is_creation_equivalence` à `true`, extrait l'aliment dans `equivalence_key` et le poids dans `equivalence_value`.
+        ESTIMATION GLOBALE (AJOUT RAPIDE) : Si l'utilisateur demande explicitement une "estimation" ou "estime" son assiette, OU s'il décrit un repas de manière globale/floue sans pouvoir lister les ingrédients précisément (ex: "un plat de pâtes au restaurant", "un burger frites chez le boucher", "un couscous chez des amis"), passe `is_estimation` à `true` et extrait un nom descriptif global pour le repas dans `nom_estimation` (ex: "Pâtes carbonara au restaurant"). Dans ce cas :
+        - Estime les calories et macronutriments pour l'ensemble du repas et place-les dans `total_kcal`, `total_proteines`, `total_glucides` et `total_lipides`.
+        - Dans la liste `aliments`, place un unique aliment représentant cette estimation globale (ex: nom = valeur de `nom_estimation`, quantité = 1g, calories et macros = totaux du repas).
+        - Rédige dans la liste `questions` jusqu'à 3 questions ciblées et courtes en français pour aider à affiner l'estimation si elle est floue (ex: présence de sauce/huile, portion petite/normale/grande, ingrédients clés, type de viande/cuisson). Laisse la liste `questions` vide si l'estimation est déjà très précise ou si ce n'est pas une estimation.
+
         
         EQUIVALENCES DE POIDS PERSONNALISÉES (TRÈS IMPORTANT) :
         Voici une table de correspondance de poids que tu DOIS ABSOLUMENT utiliser pour tes conversions si l'aliment correspond sémantiquement.
@@ -146,6 +154,11 @@ class MammouthService:
         ATTENTION RECETTE : Si l'utilisateur précise "(recette)" à côté d'un aliment, passe la valeur `is_recipe` à `true` pour cet aliment, et retire la mention "(recette)" de son nom. Sinon laisse à `false`.
         CREATION DE RECETTE : Si le message indique qu'il faut créer une recette (ex: "Nouvelle recette : Gâteau au chocolat", "Créer recette"), passe `is_creation_recette` à `true`, extrait le nom dans `nom_recette` et le nombre de portions dans `portions`. Les aliments seront alors les ingrédients de la recette.
         CREATION EQUIVALENCE : Si le message indique qu'il faut créer une nouvelle équivalence de poids, passe `is_creation_equivalence` à `true`, extrait l'aliment dans `equivalence_key` et le poids dans `equivalence_value`.
+        ESTIMATION GLOBALE (AJOUT RAPIDE) : Si l'utilisateur demande explicitement une "estimation" ou "estime" son assiette, OU s'il décrit un repas de manière globale/floue sans pouvoir lister les ingrédients précisément (ex: "un plat de pâtes au restaurant", "un burger frites chez le boucher", "un couscous chez des amis"), passe `is_estimation` à `true` et extrait un nom descriptif global pour le repas dans `nom_estimation` (ex: "Pâtes carbonara au restaurant"). Dans ce cas :
+        - Estime les calories et macronutriments pour l'ensemble du repas et place-les dans `total_kcal`, `total_proteines`, `total_glucides` et `total_lipides`.
+        - Dans la liste `aliments`, place un unique aliment représentant cette estimation globale (ex: nom = valeur de `nom_estimation`, quantité = 1g, calories et macros = totaux du repas).
+        - Rédige dans la liste `questions` jusqu'à 3 questions ciblées et courtes en français pour aider à affiner l'estimation si elle est floue (ex: présence de sauce/huile, portion petite/normale/grande, ingrédients clés, type de viande/cuisson). Laisse la liste `questions` vide si l'estimation est déjà très précise ou si ce n'est pas une estimation.
+
         
         EQUIVALENCES DE POIDS PERSONNALISÉES (TRÈS IMPORTANT) :
         Voici une table de correspondance de poids que tu DOIS ABSOLUMENT utiliser pour tes conversions si l'aliment correspond sémantiquement.
@@ -177,6 +190,9 @@ class MammouthService:
         ATTENTION RECETTE : Si l'utilisateur précise "(recette)" à côté d'un aliment corrigé ou ajouté, passe la valeur `is_recipe` à `true` pour cet aliment, et retire la mention "(recette)" de son nom.
         CREATION DE RECETTE : Si la correction indique qu'il s'agit finalement d'une création de recette, passe `is_creation_recette` à `true` et ajuste `nom_recette` et `portions`.
         CREATION EQUIVALENCE : Si le message indique qu'il faut créer une nouvelle équivalence de poids, passe `is_creation_equivalence` à `true`.
+        ESTIMATION GLOBALE (AJOUT RAPIDE) : Si la correction indique qu'il s'agit d'une estimation globale (ou si l'analyse originale était une estimation et qu'on la corrige), conserve ou passe `is_estimation` à `true`, et ajuste `nom_estimation` et les valeurs nutritionnelles associées. Dans ce cas, la liste `aliments` doit contenir un unique aliment représentant cette estimation globale.
+        - De plus, si l'utilisateur a répondu aux questions d'affinage précédentes dans son message de correction, prends en compte ses réponses pour affiner les calories et macros, puis retire ces questions résolues de la liste `questions`. S'il reste des incertitudes majeures, tu peux formuler de nouvelles questions d'affinage (maximum 3 au total). Si l'estimation est désormais assez précise, laisse la liste `questions` vide.
+
         
         EQUIVALENCES DE POIDS PERSONNALISÉES (TRÈS IMPORTANT) :
         Voici une table de correspondance de poids que tu DOIS ABSOLUMENT utiliser pour tes conversions si l'aliment correspond sémantiquement.

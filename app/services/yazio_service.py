@@ -279,6 +279,43 @@ class YazioService:
                 os.remove(self.cache_file)
             except Exception:
                 pass
-                
+
         return recipe_nutrients
+
+    def log_simple_product(self, name: str, kcal: float, protein: float, carb: float, fat: float, daytime: str = "lunch") -> None:
+        """Log a simple product (quick add) to Yazio."""
+        token = self.authenticate()
+        date_str = datetime.now().strftime("%Y-%m-%d")
+
+        payload = {
+            "products": [],
+            "recipe_portions": [],
+            "simple_products": [
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": name,
+                    "nutrients": {
+                        "energy.energy": round(kcal),
+                        "nutrient.protein": round(protein, 1),
+                        "nutrient.carb": round(carb, 1),
+                        "nutrient.fat": round(fat, 1)
+                    },
+                    "date": date_str,
+                    "daytime": daytime
+                }
+            ]
+        }
+
+        response = requests.post(
+            f"{YAZIO_BASE_URL}/user/consumed-items",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+        )
+
+        if not response.ok:
+            raise Exception(f"Failed to log simple product: {response.text}")
+
 

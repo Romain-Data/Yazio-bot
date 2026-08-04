@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
-from app.services.mammouth_service import MammouthService, RepasAnalysis
+from app.services.mammouth_service import MammouthService, RepasAnalysis, Aliment
 from app.services.yazio_service import YazioService
 
 
@@ -13,6 +13,22 @@ yazio_service = YazioService()
 def enrich_with_yazio(analysis: RepasAnalysis) -> RepasAnalysis:
     if analysis.is_creation_recette or analysis.is_creation_equivalence:
         return analysis
+
+    if getattr(analysis, "is_estimation", False):
+        analysis.aliments = [
+            Aliment(
+                nom=analysis.nom_estimation or "Estimation",
+                quantite_g=1,
+                kcal=analysis.total_kcal,
+                proteines=analysis.total_proteines,
+                glucides=analysis.total_glucides,
+                lipides=analysis.total_lipides,
+                is_recipe=False,
+                yazio_name=f"[Ajout rapide] {analysis.nom_estimation or 'Estimation'}"
+            )
+        ]
+        return analysis
+
 
     for aliment in analysis.aliments:
         if getattr(aliment, "is_recipe", False):
@@ -183,6 +199,30 @@ def _handle_food_logging(analysis: RepasAnalysis) -> dict:
     return {"status": "success", "results": results}
 
 
+def _handle_estimation_logging(analysis: RepasAnalysis) -> dict:
+    name = analysis.nom_estimation or "Estimation"
+    yazio_service.log_simple_product(
+        name=name,
+        kcal=analysis.total_kcal,
+        protein=analysis.total_proteines,
+        carb=analysis.total_glucides,
+        fat=analysis.total_lipides,
+        daytime=analysis.repas
+    )
+
+    return {
+        "status": "success",
+        "results": [
+            {
+                "aliment": name,
+                "status": "logged",
+                "yazio_name": f"Ajout rapide ({round(analysis.total_kcal)} kcal | P:{round(analysis.total_proteines, 1)}g | G:{round(analysis.total_glucides, 1)}g | L:{round(analysis.total_lipides, 1)}g)",
+                "type": "estimation"
+            }
+        ]
+    }
+
+
 @app.post("/log")
 async def log_food(request: LogFoodRequest):
     """
@@ -190,11 +230,14 @@ async def log_food(request: LogFoodRequest):
     Distinguishes between personal recipes and generic products.
     """
     try:
-        if request.analysis.is_creation_equivalence:
+        if getattr(request.analysis, "is_creation_equivalence", False):
             return _handle_equivalence_creation(request.analysis)
 
-        if request.analysis.is_creation_recette:
+        if getattr(request.analysis, "is_creation_recette", False):
             return _handle_recipe_creation(request.analysis)
+
+        if getattr(request.analysis, "is_estimation", False):
+            return _handle_estimation_logging(request.analysis)
 
         return _handle_food_logging(request.analysis)
     except Exception as e:
