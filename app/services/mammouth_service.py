@@ -35,6 +35,10 @@ class RepasAnalysis(BaseModel):
     is_estimation: bool = Field(default=False, description="True si l'utilisateur demande une estimation (si le texte contient le mot 'estimation', 'estime' ou 'estimer') ou si le repas est décrit de manière globale/floue.")
     nom_estimation: str | None = Field(default=None, description="Nom descriptif global du repas estimé (ex: 'Pâtes carbonara au restaurant')")
     questions: List[str] = Field(default=[], description="Jusqu'à 3 questions courtes pour affiner l'estimation globale si nécessaire")
+    is_activity: bool = Field(default=False, description="True si l'utilisateur décrit une activité physique ou un entraînement (ex: '1h30 de tennis', '3h de piscine', '30 min de course') plutôt qu'un repas.")
+    nom_activite: str | None = Field(default=None, description="Nom descriptif de l'activité physique (ex: 'Entraînement de tennis', 'Jeu dans une piscine')")
+    duree_minutes: int | None = Field(default=None, description="Durée de l'activité en minutes (ex: 90, 180, 30)")
+    calories_brules: float | None = Field(default=None, description="Estimation des calories brûlées (kcal) par cette activité en fonction du type d'activité, de la durée, et de l'intensité.")
 
 
 class MammouthService:
@@ -118,6 +122,15 @@ class MammouthService:
         - Estime les calories et macronutriments pour l'ensemble du repas et place-les dans `total_kcal`, `total_proteines`, `total_glucides` et `total_lipides`.
         - Dans la liste `aliments`, place un unique aliment représentant cette estimation globale (ex: nom = valeur de `nom_estimation`, quantité = 1g, calories et macros = totaux du repas).
         - Rédige dans la liste `questions` jusqu'à 3 questions ciblées et courtes en français pour aider à affiner l'estimation si elle est floue (ex: présence de sauce/huile, portion petite/normale/grande, ingrédients clés, type de viande/cuisson). Laisse la liste `questions` vide si l'estimation est déjà très précise ou si ce n'est pas une estimation.
+        
+        ACTIVITÉ PHYSIQUE (PRIORITÉ ABSOLUE SUR L'ALIMENTATION) : Si le texte décrit une activité physique, un sport ou un entraînement (ex: "3h de jeu dans une piscine avec mes enfants", "1h30 d'entrainement de tennis", "30 minutes de footing"), tu DOIS impérativement :
+        - Passer `is_activity` à `true`.
+        - Extraire le nom descriptif de l'activité dans `nom_activite` (ex: "Jeu piscine avec enfants", "Entraînement de tennis", "Footing").
+        - Extraire ou estimer la durée de l'activité en minutes dans `duree_minutes` (ex: 180, 90, 30).
+        - Estimer la dépense calorique dans `calories_brules` (en te basant sur des équivalences de dépenses métaboliques standards pour un adulte d'environ 75 kg).
+        - Laisser la liste `aliments` vide.
+        - Positionner `repas` à "snack" et mettre les totaux nutritionnels (`total_kcal`, `total_proteines`, `total_glucides`, `total_lipides`) à 0.
+        - Rédiger dans la liste `questions` jusqu'à 3 questions ciblées et courtes en français pour affiner l'intensité ou les conditions de l'activité si nécessaire (ex: "L'intensité était-elle plutôt modérée ou intense ?", "Était-ce de la nage active ou des jeux d'eau ?"). Laisse la liste vide si le contexte est déjà très clair.
 
 
         
@@ -196,6 +209,8 @@ class MammouthService:
         CREATION EQUIVALENCE : Si le message indique qu'il faut créer une nouvelle équivalence de poids, passe `is_creation_equivalence` à `true`.
         ESTIMATION GLOBALE (AJOUT RAPIDE) : Si la correction indique qu'il s'agit d'une estimation globale (ou si l'analyse originale était une estimation et qu'on la corrige), conserve ou passe `is_estimation` à `true`, et ajuste `nom_estimation` et les valeurs nutritionnelles associées. Dans ce cas, la liste `aliments` doit contenir un unique aliment représentant cette estimation globale.
         - De plus, si l'utilisateur a répondu aux questions d'affinage précédentes dans son message de correction, prends en compte ses réponses pour affiner les calories et macros, puis retire ces questions résolues de la liste `questions`. S'il reste des incertitudes majeures, tu peux formuler de nouvelles questions d'affinage (maximum 3 au total). Si l'estimation est désormais assez précise, laisse la liste `questions` vide.
+        
+        ACTIVITÉ PHYSIQUE : Si la correction concerne une activité physique, ou si l'analyse originale concernait une activité physique et qu'on la corrige, conserve `is_activity` à `true`. Ajuste `nom_activite`, `duree_minutes` et `calories_brules` en fonction des réponses ou corrections de l'utilisateur. Si l'utilisateur a répondu aux questions d'affinage précédentes pour l'activité, prends en compte ses réponses pour affiner la dépense calorique (par exemple en fonction de l'intensité décrite), puis retire ces questions résolues de la liste `questions`. S'il reste des incertitudes majeures, tu peux formuler de nouvelles questions d'affinage (maximum 3 au total). Si l'estimation est désormais assez précise, laisse la liste `questions` vide.
 
         
         EQUIVALENCES DE POIDS PERSONNALISÉES (TRÈS IMPORTANT) :

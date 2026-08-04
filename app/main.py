@@ -11,7 +11,7 @@ yazio_service = YazioService()
 
 
 def enrich_with_yazio(analysis: RepasAnalysis) -> RepasAnalysis:
-    if analysis.is_creation_recette or analysis.is_creation_equivalence:
+    if analysis.is_creation_recette or analysis.is_creation_equivalence or getattr(analysis, "is_activity", False):
         return analysis
 
     if getattr(analysis, "is_estimation", False):
@@ -223,6 +223,30 @@ def _handle_estimation_logging(analysis: RepasAnalysis) -> dict:
     }
 
 
+def _handle_activity_logging(analysis: RepasAnalysis) -> dict:
+    name = analysis.nom_activite or "Activité physique"
+    kcal = analysis.calories_brules or 0.0
+    duration = analysis.duree_minutes or 0
+
+    logged_info = yazio_service.log_activity(
+        name=name,
+        kcal=kcal,
+        duration_minutes=duration
+    )
+
+    return {
+        "status": "success",
+        "results": [
+            {
+                "aliment": name,
+                "status": "logged",
+                "yazio_name": f"Dépense estimée ({round(kcal)} kcal | {duration} min)",
+                "type": "activité"
+            }
+        ]
+    }
+
+
 @app.post("/log")
 async def log_food(request: LogFoodRequest):
     """
@@ -238,6 +262,9 @@ async def log_food(request: LogFoodRequest):
 
         if getattr(request.analysis, "is_estimation", False):
             return _handle_estimation_logging(request.analysis)
+
+        if getattr(request.analysis, "is_activity", False):
+            return _handle_activity_logging(request.analysis)
 
         return _handle_food_logging(request.analysis)
     except Exception as e:

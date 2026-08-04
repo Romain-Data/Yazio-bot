@@ -319,3 +319,59 @@ class YazioService:
             raise Exception(f"Failed to log simple product: {response.text}")
 
 
+    def log_activity(self, name: str, kcal: float, duration_minutes: int) -> dict:
+        """Log a custom physical activity to Yazio."""
+        token = self.authenticate()
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        payload = {
+            "custom_training": [
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": name,
+                    "energy": float(kcal),
+                    "duration": int(duration_minutes),  # duration is in minutes
+                    "date": now_str,
+                    "source": "manual",
+                    "gateway": "manual"
+                }
+            ],
+            "training": []
+        }
+
+        response = requests.post(
+            f"{YAZIO_BASE_URL}/user/exercises",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+        )
+
+        if not response.ok:
+            raise Exception(f"Failed to log activity: {response.text}")
+
+        return {
+            "id": payload["custom_training"][0]["id"],
+            "name": name,
+            "kcal": kcal,
+            "duration": duration_minutes
+        }
+
+
+    def delete_activities(self, ids: List[str]) -> None:
+        """Delete exercises/activities from Yazio diary using their IDs."""
+        token = self.authenticate()
+        response = requests.delete(
+            f"{YAZIO_BASE_URL}/user/exercises/trainings",
+            json=ids,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+        )
+
+        if not response.ok:
+            raise Exception(f"Failed to delete exercises: {response.text}")
+
+
