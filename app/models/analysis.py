@@ -13,26 +13,42 @@ class Aliment(BaseModel):
     yazio_name: Optional[str] = Field(default=None, description="Nom officiel trouvé dans Yazio")
 
 
-class RepasAnalysis(BaseModel):
+class BaseMealAnalysis(BaseModel):
     repas: str = Field(description="Type de repas: 'breakfast', 'lunch', 'dinner' ou 'snack'")
     aliments: List[Aliment] = Field(description="Liste des aliments identifiés")
     total_kcal: float = Field(description="Total des calories")
     total_proteines: float = Field(description="Total des protéines")
     total_glucides: float = Field(description="Total des glucides")
     total_lipides: float = Field(description="Total des lipides")
-    is_creation_recette: bool = Field(default=False, description="True si l'utilisateur demande explicitement de créer une NOUVELLE recette")
+
+
+class RecipeFields(BaseModel):
+    is_creation_recette: bool = Field(default=False, description="True si l'utilisateur demande de créer une recette")
     nom_recette: Optional[str] = Field(default=None, description="Nom de la nouvelle recette à créer")
     portions: int = Field(default=1, description="Nombre de portions de la recette")
-    is_creation_equivalence: bool = Field(default=False, description="True si l'utilisateur demande d'ajouter une équivalence de poids")
+
+
+class EquivalenceFields(BaseModel):
+    is_creation_equivalence: bool = Field(default=False, description="True si l'utilisateur demande d'ajouter une équivalence")
     equivalence_key: Optional[str] = Field(default=None, description="L'aliment et l'unité pour l'équivalence")
     equivalence_value: Optional[str] = Field(default=None, description="Le poids en grammes pour l'équivalence")
+
+
+class EstimationFields(BaseModel):
     is_estimation: bool = Field(default=False, description="True si estimation globale demandée ou repas flou")
     nom_estimation: Optional[str] = Field(default=None, description="Nom descriptif global du repas estimé")
     questions: List[str] = Field(default=[], description="Questions courtes pour affiner l'estimation")
+
+
+class ActivityFields(BaseModel):
     is_activity: bool = Field(default=False, description="True si l'utilisateur décrit une activité physique")
     nom_activite: Optional[str] = Field(default=None, description="Nom descriptif de l'activité physique")
     duree_minutes: Optional[int] = Field(default=None, description="Durée de l'activité en minutes")
     calories_brules: Optional[float] = Field(default=None, description="Estimation des calories brûlées (kcal)")
+
+
+class RepasAnalysis(BaseMealAnalysis, RecipeFields, EquivalenceFields, EstimationFields, ActivityFields):
+    is_prompt: bool = Field(default=False, description="True s'il s'agit d'une question interactive sans données extraites")
 
 
 class IntentAnalysis(BaseModel):
@@ -42,7 +58,7 @@ class IntentAnalysis(BaseModel):
 class ActivityOnlyAnalysis(BaseModel):
     nom_activite: str = Field(description="Nom descriptif de l'activité physique (ex: 'Entraînement de tennis')")
     duree_minutes: int = Field(description="Durée de l'effort physique actif réel en minutes (ex: 90, 180)")
-    calories_brules: float = Field(description="Estimation réaliste et prudente des calories brûlées (kcal) pour un adulte de 75 kg")
+    calories_brules: float = Field(description="Estimation réaliste et prudente des calories brûlées (kcal)")
     questions: List[str] = Field(default=[], description="Jusqu'à 3 questions courtes d'affinage si l'intensité/conditions sont floues")
 
 

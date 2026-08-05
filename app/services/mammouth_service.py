@@ -112,6 +112,60 @@ class MammouthService:
         intent = self._detect_intent(text)
         custom_weights = self._load_custom_weights()
 
+        # Check if the cleaned text is strictly the command word (indicating an empty command input)
+        cleaned = re.sub(
+            r'^[^a-zA-Z0-9àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]*', '', text
+        ).strip().lower()
+
+        if cleaned in ["activité", "activite", "sport"]:
+            return RepasAnalysis(
+                repas="snack",
+                aliments=[],
+                total_kcal=0.0,
+                total_proteines=0.0,
+                total_glucides=0.0,
+                total_lipides=0.0,
+                is_activity=True,
+                is_prompt=True,
+                questions=["Quelle activité as-tu pratiquée ? (Indique le type de sport et la durée, ex: 1h30 de tennis)"]
+            )
+        elif cleaned in ["estimation", "estime", "estimer", "estim"]:
+            return RepasAnalysis(
+                repas="snack",
+                aliments=[],
+                total_kcal=0.0,
+                total_proteines=0.0,
+                total_glucides=0.0,
+                total_lipides=0.0,
+                is_estimation=True,
+                is_prompt=True,
+                questions=["Quel repas veux-tu estimer ? (ex: un plat de pâtes au restaurant)"]
+            )
+        elif cleaned in ["recette", "nouvelle recette", "creer recette", "créer recette"]:
+            return RepasAnalysis(
+                repas="snack",
+                aliments=[],
+                total_kcal=0.0,
+                total_proteines=0.0,
+                total_glucides=0.0,
+                total_lipides=0.0,
+                is_creation_recette=True,
+                is_prompt=True,
+                questions=["Quelle recette veux-tu créer ? (Indique le nom de la recette, le nombre de portions et la liste des ingrédients)"]
+            )
+        elif cleaned in ["equivalence", "équivalence", "nouvelle equivalence", "nouvelle équivalence"]:
+            return RepasAnalysis(
+                repas="snack",
+                aliments=[],
+                total_kcal=0.0,
+                total_proteines=0.0,
+                total_glucides=0.0,
+                total_lipides=0.0,
+                is_creation_equivalence=True,
+                is_prompt=True,
+                questions=["Quelle équivalence veux-tu ajouter ? (ex: 1 tranche de jambon blanc 45g)"]
+            )
+
         if intent == "activity":
             return self.activity_extractor.analyze_text(text, local_time)
         elif intent == "recipe":

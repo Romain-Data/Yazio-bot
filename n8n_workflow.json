@@ -220,8 +220,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.1,
       "position": [
-        736,
-        224
+        960,
+        128
       ],
       "webhookId": "91007980-7f3a-419d-9b87-d34c04b7cf94",
       "credentials": {
@@ -355,6 +355,51 @@
       ],
       "id": "dfcd194c-50fe-452d-a726-82efbc5381d6",
       "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_prompt }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-is-prompt-node-id",
+      "name": "Est-ce un Prompt ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        736,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.questions[0] }}",
+        "replyMarkup": "forceReply",
+        "forceReply": {},
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "telegram-prompt-node-id",
+      "name": "Demander détails (Prompt)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        320
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "Pjde9ix5W2lkDyj0",
+          "name": "RomainYazioBot"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -510,6 +555,24 @@
     },
     "Code in JavaScript": {
       "main": [
+        [
+          {
+            "node": "Est-ce un Prompt ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Est-ce un Prompt ?": {
+      "main": [
+        [
+          {
+            "node": "Demander détails (Prompt)",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Envoyer Résumé + Boutons",
