@@ -71,7 +71,9 @@ def test_activity_flow():
         "Content-Type": "application/json"
     }
 
-    r = requests.get("https://yzapi.yazio.com/v15/user/exercises?date=2026-08-04", headers=headers)
+    import datetime
+    today_str = datetime.date.today().isoformat()
+    r = requests.get(f"https://yzapi.yazio.com/v15/user/exercises?date={today_str}", headers=headers)
     assert r.status_code == 200, f"Failed to get Yazio exercises: {r.text}"
 
     state = r.json()
@@ -94,7 +96,7 @@ def test_activity_flow():
         yazio.delete_activities(matching_ids)
 
         # Verify deletion
-        r = requests.get("https://yzapi.yazio.com/v15/user/exercises?date=2026-08-04", headers=headers)
+        r = requests.get(f"https://yzapi.yazio.com/v15/user/exercises?date={today_str}", headers=headers)
         state_after = r.json()
         assert not any(item["id"] in matching_ids for item in state_after.get("custom_training", [])), "Activity should have been deleted"
         print("Cleanup successful!")

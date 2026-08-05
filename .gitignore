@@ -17,4 +17,5 @@ wheels/
 .DS_Store
 
 # Test files
-test*
+/test_*
+
