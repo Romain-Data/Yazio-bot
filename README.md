@@ -40,13 +40,39 @@ L'API Python seule ne fait rien sans n8n. Voici comment relier l'ensemble :
 
 Une fois ces étapes validées, activez le workflow en haut à droite de l'écran n8n. Votre bot est prêt !
 
+## 📝 Commandes & Routage Automatique
+
+L'API utilise un système de **routage hybride** (Regex + Fallback sémantique) qui analyse votre message Telegram pour diriger la requête vers le bon extracteur spécialisé :
+
+1. **Repas Standard (Par défaut)**
+   - **Déclenchement** : Si aucun mot-clé spécial n'est détecté.
+   - **Usage** : Listez simplement vos aliments et quantités (ex: *"100g de riz, 150g de poulet et une pomme"*).
+   - **Astuce Recette** : Si vous consommez une recette déjà enregistrée sur Yazio, ajoutez `(recette)` à côté du nom (ex: *"200g de cake aux olives (recette)"*).
+
+2. **Activité Physique & Sport**
+   - **Déclenchement** : Commencer le message par un mot-clé de sport (`activité`, `sport`, `footing`, `séance`, `muscu`, `piscine`, etc.) **OU** si le texte décrit implicitement une activité (ex: *"1h30 d'entraînement de tennis"*).
+   - **Usage** : Estime de manière ultra-prudente la dépense calorique (basée sur un adulte de 75 kg) et l'enregistre en tant qu'exercice dans Yazio.
+
+3. **Création de Recette**
+   - **Déclenchement** : Commencer le message par `recette` ou `nouvelle recette` (ex: *"Nouvelle recette : Tarte aux pommes - 6 portions. Ingrédients : 1 pâte feuilletée, 4 pommes, 50g de beurre"*).
+   - **Usage** : Calcule les macronutriments par portion et enregistre la recette dans votre compte Yazio.
+
+4. **Création d'Équivalences de poids**
+   - **Déclenchement** : Commencer le message par `équivalence` ou `nouvelle équivalence` (ex: *"Nouvelle équivalence : 1 tranche de jambon blanc 45g"*).
+   - **Usage** : Enregistre la correspondance dans `custom_weights.json` pour vos futures saisies rapides.
+
+5. **Estimation Globale**
+   - **Déclenchement** : Commencer le message par `estimation` ou `estime` (ex: *"Estimation : Couscous royal au restaurant ce midi"*).
+   - **Usage** : Fait une estimation globale du repas entier (sans lister chaque ingrédient individuellement) et suggère des questions d'affinage pour préciser la portion.
+
+---
+
 ## 🤖 Fonctionnalités de l'API
 
-- `POST /analyze/text` : Analyse une description textuelle d'un repas.
-- `POST /analyze/image` : Analyse une photo avec ou sans texte additionnel.
-- `POST /analyze/correction` : Permet de corriger une analyse (ex: "J'ai plutôt mangé 200g de pâtes").
-- `POST /log` : Envoie les résultats de l'analyse directement dans l'application Yazio de l'utilisateur.
-  - *Note : Gère les aliments génériques mais aussi vos recettes personnelles ! Il suffit de rajouter `(recette)` à côté d'un aliment dans la description.*
+- `POST /analyze/text` : Analyse une description textuelle (repas, sport, recette, équivalence ou estimation).
+- `POST /analyze/image` : Analyse une photo avec ou sans commentaire.
+- `POST /analyze/correction` : Corrige l'analyse précédente (ex: *"C'était en fait 2h d'entraînement"* ou *"Enlève le beurre"*).
+- `POST /log` : Envoie les résultats (aliments, exercices, équivalences ou recettes) directement dans votre compte Yazio.
 
 ## ⚠️ Avertissement de Sécurité
 Ne publiez **JAMAIS** votre fichier `.env` ou vos identifiants Yazio. Ce projet n'est pas affilié à Yazio et utilise leur API interne de manière non-officielle à des fins purement personnelles.
