@@ -16,17 +16,18 @@ class MammouthService:
         if not self.api_key:
             raise ValueError("MAMMOUTH_API_KEY must be set in the environment.")
         self.api_url = "https://api.mammouth.ai/v1/chat/completions"
-        self.model_id = os.getenv("MAMMOUTH_MODEL_ID", "gemini-2.5-flash-lite")
+        self.text_model_id = os.getenv("MAMMOUTH_TEXT_MODEL_ID") or os.getenv("MAMMOUTH_MODEL_ID") or "gemini-2.5-flash-lite"
+        self.image_model_id = os.getenv("MAMMOUTH_IMAGE_MODEL_ID") or os.getenv("MAMMOUTH_MODEL_ID") or "gemini-2.5-flash"
         self.custom_weights_file = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "data", "custom_weights.json"
         )
 
         # Instantiate modular extractors
-        self.meal_extractor = MealExtractor(self.api_key, self.api_url, self.model_id)
-        self.activity_extractor = ActivityExtractor(self.api_key, self.api_url, self.model_id)
-        self.recipe_extractor = RecipeExtractor(self.api_key, self.api_url, self.model_id)
-        self.equivalence_extractor = EquivalenceExtractor(self.api_key, self.api_url, self.model_id)
-        self.estimation_extractor = EstimationExtractor(self.api_key, self.api_url, self.model_id)
+        self.meal_extractor = MealExtractor(self.api_key, self.api_url, self.text_model_id, self.image_model_id)
+        self.activity_extractor = ActivityExtractor(self.api_key, self.api_url, self.text_model_id, self.image_model_id)
+        self.recipe_extractor = RecipeExtractor(self.api_key, self.api_url, self.text_model_id, self.image_model_id)
+        self.equivalence_extractor = EquivalenceExtractor(self.api_key, self.api_url, self.text_model_id, self.image_model_id)
+        self.estimation_extractor = EstimationExtractor(self.api_key, self.api_url, self.text_model_id, self.image_model_id)
 
     def _load_custom_weights(self) -> str:
         if os.path.exists(self.custom_weights_file):

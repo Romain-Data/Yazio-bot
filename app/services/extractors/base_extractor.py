@@ -6,10 +6,12 @@ T = TypeVar('T', bound=BaseModel)
 
 
 class BaseExtractor:
-    def __init__(self, api_key: str, api_url: str, model_id: str):
+    def __init__(self, api_key: str, api_url: str, text_model_id: str, image_model_id: str):
         self.api_key = api_key
         self.api_url = api_url
-        self.model_id = model_id
+        self.text_model_id = text_model_id
+        self.image_model_id = image_model_id
+
 
     def _call_api(self, prompt: str, response_model: Type[T], image_part: Optional[dict] = None) -> T:
         headers = {
@@ -21,8 +23,9 @@ class BaseExtractor:
         if image_part:
             content_list.append(image_part)
 
+        model = self.image_model_id if image_part else self.text_model_id
         payload = {
-            "model": self.model_id,
+            "model": model,
             "messages": [
                 {
                     "role": "user",
