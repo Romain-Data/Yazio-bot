@@ -2,6 +2,8 @@ import base64
 import os
 import json
 import re
+from datetime import datetime
+
 from app.models.analysis import RepasAnalysis
 from app.services.extractors.meal_extractor import MealExtractor
 from app.services.extractors.activity_extractor import ActivityExtractor
@@ -110,6 +112,9 @@ class MammouthService:
         Analyzes a textual description of a meal or activity.
         Routes to the appropriate specialized extractor.
         """
+        if not local_time:
+            local_time = datetime.now().astimezone().isoformat()
+
         intent = self._detect_intent(text)
         custom_weights = self._load_custom_weights()
 
@@ -188,6 +193,9 @@ class MammouthService:
         """
         Analyzes an image of a meal, optionally assisted by user text.
         """
+        if not local_time:
+            local_time = datetime.now().astimezone().isoformat()
+
         intent = self._detect_intent(text)
         custom_weights = self._load_custom_weights()
 
@@ -219,6 +227,9 @@ class MammouthService:
         """
         Applies a natural language correction to a previous analysis.
         """
+        if not local_time:
+            local_time = datetime.now().astimezone().isoformat()
+
         custom_weights = self._load_custom_weights()
 
         if getattr(original_analysis, "is_activity", False):

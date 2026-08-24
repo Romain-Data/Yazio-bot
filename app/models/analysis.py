@@ -74,6 +74,7 @@ class EquivalenceOnlyAnalysis(BaseModel):
 
 
 class GlobalEstimationOnlyAnalysis(BaseModel):
+    repas: str = Field(description="Type de repas: 'breakfast', 'lunch', 'dinner' ou 'snack'")
     nom_estimation: str = Field(description="Nom descriptif global pour le repas (ex: 'Tarte tatin maison et café au lait')")
     total_kcal: float = Field(description="Total des calories pour l'ensemble du repas")
     total_proteines: float = Field(description="Total des protéines")

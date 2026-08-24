@@ -62,5 +62,35 @@ def test_estimation_flow():
     print("\nTest completed successfully!")
 
 
+def test_estimation_meal_override():
+    # 1. Analyze text query requesting an estimation with an explicit meal type in text
+    print("\nTesting text analysis with explicit meal override...")
+    analyze_payload = {
+        "text": "Estime mon dîner: une pizza marguerita au resto",
+        "local_time": "2026-08-04T12:30:00+02:00"  # This hour would normally map to lunch
+    }
+    resp_analyze = client.post("/analyze/text", json=analyze_payload)
+    assert resp_analyze.status_code == 200, f"Analysis failed: {resp_analyze.text}"
+
+    analysis_data = resp_analyze.json()
+    print("Meal type from response (expected: dinner):", analysis_data.get("repas"))
+    assert analysis_data.get("repas") == "dinner", "repas should be 'dinner' due to text override"
+
+    # 2. Refine analysis with a correction changing the meal type
+    print("\nTesting correction with explicit meal override...")
+    correction_payload = {
+        "original_analysis": analysis_data,
+        "correction": "Finalement c'était plutôt mon snack de l'après-midi",
+        "local_time": "2026-08-04T12:35:00+02:00"
+    }
+    resp_correction = client.post("/analyze/correction", json=correction_payload)
+    assert resp_correction.status_code == 200, f"Correction failed: {resp_correction.text}"
+
+    corrected_data = resp_correction.json()
+    print("Corrected meal type from response (expected: snack):", corrected_data.get("repas"))
+    assert corrected_data.get("repas") == "snack", "repas should be 'snack' due to correction override"
+
+
 if __name__ == "__main__":
     test_estimation_flow()
+    test_estimation_meal_override()
