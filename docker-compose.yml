@@ -1,18 +1,31 @@
 services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./vpn:/gluetun
+    environment:
+      - VPN_SERVICE_PROVIDER=custom
+      - VPN_TYPE=openvpn
+      - OPENVPN_USER=${OPENVPN_USER}
+      - OPENVPN_PASSWORD=${OPENVPN_PASSWORD}
+      - OPENVPN_CUSTOM_CONFIG=/gluetun/nl-free-120.protonvpn.udp.ovpn
+    restart: unless-stopped
+
   yazio-bot-api:
     build: .
     container_name: yazio_bot_api
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    network_mode: "service:gluetun"
+    depends_on:
+      - gluetun
     env_file:
       - .env
     volumes:
       - ./app/data:/app/app/data
-    # Si n8n est sur un réseau spécifique, décommentez et adaptez ci-dessous :
-    # networks:
-    #   - n8n_default
-
-    # networks:
-    #   n8n_default:
-    #     external: true
