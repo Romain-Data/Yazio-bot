@@ -7,12 +7,17 @@ from app.services.yazio_service import YazioService
 
 app = FastAPI(title="Yazio Telegram Bot API")
 
-mammouth_service = MammouthService()
 yazio_service = YazioService()
+mammouth_service = MammouthService(yazio_service=yazio_service)
 
 
 def enrich_with_yazio(analysis: RepasAnalysis) -> RepasAnalysis:
-    if analysis.is_creation_recette or analysis.is_creation_equivalence or getattr(analysis, "is_activity", False):
+    if (
+        analysis.is_creation_recette
+        or analysis.is_creation_equivalence
+        or getattr(analysis, "is_activity", False)
+        or getattr(analysis, "is_summary", False)
+    ):
         return analysis
 
     if getattr(analysis, "is_estimation", False):
@@ -268,6 +273,38 @@ async def log_food(request: LogFoodRequest):
             return _handle_activity_logging(request.analysis)
 
         return _handle_food_logging(request.analysis)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/summary/week")
+async def get_weekly_summary(rolling_7d: bool = False):
+    """
+    Returns the weekly nutritional summary and formatted text.
+    """
+    try:
+        summary = yazio_service.get_weekly_summary(rolling_7d=rolling_7d)
+        return {
+            "summary": summary,
+            "formatted_text": yazio_service.format_weekly_summary(summary)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/summary/daily")
+async def get_daily_summary(date: str | None = None):
+    """
+    Returns the daily nutritional summary and formatted text for a specific date (YYYY-MM-DD).
+    """
+    try:
+        from datetime import date as dt_date
+        date_str = date or dt_date.today().strftime("%Y-%m-%d")
+        daily = yazio_service.get_daily_summary(date_str)
+        return {
+            "daily": daily,
+            "formatted_text": yazio_service.format_daily_summary(daily)
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

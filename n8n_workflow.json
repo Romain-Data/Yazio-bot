@@ -187,7 +187,7 @@
     {
       "parameters": {
         "chatId": "={{ $json.chat_id }}",
-        "text": "={{ $json.is_activity ? '🏃 Activité physique détectée : ' + $json.nom_activite + '\\n\\nDurée : ' + $json.duree_minutes + ' minutes\\nEstimation de la dépense calorique : ' + $json.calories_brules + ' kcal' : 'Repas détecté : ' + $json.repas + '\\n\\nCalories totales : ' + $json.total_kcal + ' kcal\\nProtéines : ' + $json.total_proteines + ' g\\nGlucides : ' + $json.total_glucides + ' g\\nLipides : ' + $json.total_lipides + ' g\\n\\nAliments détectés par Yazio :\\n' + $json.aliments.map(a => '- ' + (a.yazio_name || a.nom) + ' (' + a.quantite_g + 'g - ' + a.kcal + ' kcal)').join('\\n') }}{{ $json.questions && $json.questions.length > 0 ? '\\n\\n❓ Pour affiner, tu peux répondre à ces questions (ou valider directement) :\\n' + $json.questions.map((q, i) => (i + 1) + '. ' + q).join('\\n') : '' }}",
+        "text": "={{ $json.is_summary ? $json.summary_text : ($json.is_activity ? '🏃 Activité physique détectée : ' + $json.nom_activite + '\\n\\nDurée : ' + $json.duree_minutes + ' minutes\\nEstimation de la dépense calorique : ' + $json.calories_brules + ' kcal' : 'Repas détecté : ' + $json.repas + '\\n\\nCalories totales : ' + $json.total_kcal + ' kcal\\nProtéines : ' + $json.total_proteines + ' g\\nGlucides : ' + $json.total_glucides + ' g\\nLipides : ' + $json.total_lipides + ' g\\n\\nAliments détectés par Yazio :\\n' + $json.aliments.map(a => '- ' + (a.yazio_name || a.nom) + ' (' + a.quantite_g + 'g - ' + a.kcal + ' kcal)').join('\\n')) }}{{ $json.questions && $json.questions.length > 0 ? '\\n\\n❓ Pour affiner, tu peux répondre à ces questions (ou valider directement) :\\n' + $json.questions.map((q, i) => (i + 1) + '. ' + q).join('\\n') : '' }}",
         "replyMarkup": "inlineKeyboard",
         "inlineKeyboard": {
           "rows": [
@@ -400,6 +400,49 @@
           "name": "RomainYazioBot"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_summary }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-is-summary-node-id",
+      "name": "Est-ce un Résumé / Bilan ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        736,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.summary_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "telegram-summary-node-id",
+      "name": "Envoyer Bilan (Sans Boutons)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        -16
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "Pjde9ix5W2lkDyj0",
+          "name": "RomainYazioBot"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -555,6 +598,24 @@
     },
     "Code in JavaScript": {
       "main": [
+        [
+          {
+            "node": "Est-ce un Résumé / Bilan ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Est-ce un Résumé / Bilan ?": {
+      "main": [
+        [
+          {
+            "node": "Envoyer Bilan (Sans Boutons)",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Est-ce un Prompt ?",

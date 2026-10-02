@@ -1,4 +1,7 @@
 import json
+import os
+import sys
+sys.path.insert(0, os.getcwd())
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 

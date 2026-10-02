@@ -47,12 +47,17 @@ class ActivityFields(BaseModel):
     calories_brules: Optional[float] = Field(default=None, description="Estimation des calories brûlées (kcal)")
 
 
-class RepasAnalysis(BaseMealAnalysis, RecipeFields, EquivalenceFields, EstimationFields, ActivityFields):
+class SummaryFields(BaseModel):
+    is_summary: bool = Field(default=False, description="True si l'utilisateur demande un résumé ou bilan du journal Yazio")
+    summary_text: Optional[str] = Field(default=None, description="Texte formaté du résumé hebdomadaire ou journalier")
+
+
+class RepasAnalysis(BaseMealAnalysis, RecipeFields, EquivalenceFields, EstimationFields, ActivityFields, SummaryFields):
     is_prompt: bool = Field(default=False, description="True s'il s'agit d'une question interactive sans données extraites")
 
 
 class IntentAnalysis(BaseModel):
-    intent: str = Field(description="L'intention détectée : 'activity', 'recipe_creation', 'equivalence_creation', 'global_estimation', 'meal_logging'")
+    intent: str = Field(description="L'intention détectée : 'activity', 'recipe_creation', 'equivalence_creation', 'global_estimation', 'summary', 'meal_logging'")
 
 
 class ActivityOnlyAnalysis(BaseModel):

@@ -10,10 +10,12 @@ from app.services.extractors.activity_extractor import ActivityExtractor
 from app.services.extractors.recipe_extractor import RecipeExtractor
 from app.services.extractors.equivalence_extractor import EquivalenceExtractor
 from app.services.extractors.estimation_extractor import EstimationExtractor
+from app.services.extractors.summary_extractor import SummaryExtractor
+from app.services.yazio_service import YazioService
 
 
 class MammouthService:
-    def __init__(self):
+    def __init__(self, yazio_service: YazioService | None = None):
         self.api_key = os.getenv("MAMMOUTH_API_KEY")
         if not self.api_key:
             raise ValueError("MAMMOUTH_API_KEY must be set in the environment.")
@@ -23,6 +25,7 @@ class MammouthService:
         self.custom_weights_file = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "data", "custom_weights.json"
         )
+        self.yazio_service = yazio_service or YazioService()
 
         # Instantiate modular extractors
         self.meal_extractor = MealExtractor(self.api_key, self.api_url, self.text_model_id, self.image_model_id)
@@ -30,6 +33,7 @@ class MammouthService:
         self.recipe_extractor = RecipeExtractor(self.api_key, self.api_url, self.text_model_id, self.image_model_id)
         self.equivalence_extractor = EquivalenceExtractor(self.api_key, self.api_url, self.text_model_id, self.image_model_id)
         self.estimation_extractor = EstimationExtractor(self.api_key, self.api_url, self.text_model_id, self.image_model_id)
+        self.summary_extractor = SummaryExtractor(self.api_key, self.api_url, self.text_model_id, self.image_model_id, self.yazio_service)
 
     def _load_custom_weights(self) -> str:
         if os.path.exists(self.custom_weights_file):
@@ -85,6 +89,8 @@ class MammouthService:
             return "equivalence"
         if re.match(r'^(estimation|estime|estimer|estim)\b', cleaned):
             return "estimation"
+        if re.match(r'^(resume|résumé|bilan|recap|récap|journal|hebdo|semaine)\b', cleaned):
+            return "summary"
 
         # 2. Implicit Activity Matches (No explicit prefix, but activity keywords and no meal indicators)
         activity_keywords = [
@@ -180,6 +186,8 @@ class MammouthService:
             return self.equivalence_extractor.analyze_text(text, local_time)
         elif intent == "estimation":
             return self.estimation_extractor.analyze_text(text, local_time)
+        elif intent == "summary":
+            return self.summary_extractor.analyze_text(text, local_time)
         else:
             return self.meal_extractor.analyze_text(text, local_time, custom_weights)
 
@@ -213,6 +221,8 @@ class MammouthService:
             return self.equivalence_extractor.analyze_text(text, local_time)
         elif intent == "estimation":
             return self.estimation_extractor.analyze_image(image_part, text, local_time)
+        elif intent == "summary":
+            return self.summary_extractor.analyze_text(text, local_time)
         else:
             return self.meal_extractor.analyze_image(
                 image_part, text, local_time, custom_weights
@@ -248,6 +258,8 @@ class MammouthService:
             return self.estimation_extractor.analyze_correction(
                 original_analysis, correction, local_time
             )
+        elif getattr(original_analysis, "is_summary", False):
+            return self.summary_extractor.analyze_text(correction, local_time)
         else:
             return self.meal_extractor.analyze_correction(
                 original_analysis, correction, local_time, custom_weights
