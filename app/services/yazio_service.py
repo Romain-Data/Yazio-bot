@@ -636,7 +636,7 @@ class YazioService:
         }
 
     def format_weekly_summary(self, summary: Dict[str, Any]) -> str:
-        """Formats the weekly summary into a readable Telegram markdown message."""
+        """Formats the weekly summary into a compact, readable Telegram markdown message."""
         formatted_steps = f"{summary.get('avg_steps', 0):,}".replace(",", " ")
         lines = [
             f"📊 *Bilan de la semaine ({summary['start_short']} au {summary['end_short']})*",
@@ -659,28 +659,40 @@ class YazioService:
             "🗓 *Détail par jour :*"
         ])
 
+        meal_abbr = {
+            "breakfast": "P.Déj",
+            "lunch": "Déj",
+            "snack": "Snack",
+            "dinner": "Dîner"
+        }
+
         for day in summary["days"]:
             meta_parts = []
             if day.get("weight"):
                 meta_parts.append(f"⚖️ {day['weight']} kg")
             if day.get("steps"):
-                meta_parts.append(f"👟 {day['steps']} pas")
+                steps_str = f"{day['steps']:,}".replace(",", " ")
+                meta_parts.append(f"👟 {steps_str} pas")
             if day.get("burned_kcal"):
                 meta_parts.append(f"🔥 -{day['burned_kcal']} kcal")
 
-            meta_str = f" | {' • '.join(meta_parts)}" if meta_parts else ""
-            lines.append(f"\n🔹 *{day['day_name']} {day['day_short']}* — *{day['kcal']} kcal* (P: {day['protein']}g | G: {day['carb']}g | L: {day['fat']}g){meta_str}")
+            meta_str = f"\n   _{' • '.join(meta_parts)}_" if meta_parts else ""
+            lines.append(f"\n🔹 *{day['day_name']} {day['day_short']}* — *{day['kcal']} kcal* (P: {round(day['protein'])}g | G: {round(day['carb'])}g | L: {round(day['fat'])}g){meta_str}")
 
-            has_items = False
-            for _, mdata in day["meals"].items():
-                if mdata["items"]:
-                    has_items = True
-                    items_str = ", ".join(mdata["items"])
-                    lines.append(f"  ▫️ *{mdata['label']}* ({round(mdata['kcal'])} kcal) : {items_str}")
-            if not has_items:
-                lines.append("  ▫️ _Aucune saisie alimentaire_")
+            meal_parts = []
+            for mkey, mdata in day["meals"].items():
+                if mdata.get("kcal", 0) > 0:
+                    m_label = meal_abbr.get(mkey, mdata["label"])
+                    meal_parts.append(f"{m_label} {round(mdata['kcal'])}")
+            if meal_parts:
+                lines.append(f"   ▫️ {' • '.join(meal_parts)} kcal")
+            elif day["kcal"] == 0:
+                lines.append("   ▫️ _Aucune saisie_")
 
-        return "\n".join(lines)
+        result = "\n".join(lines)
+        if len(result) > 4000:
+            result = result[:3950] + "\n\n...(tronqué)"
+        return result
 
     def format_daily_summary(self, daily: Dict[str, Any]) -> str:
         """Formats a single day summary into a readable Telegram markdown message."""
@@ -691,7 +703,8 @@ class YazioService:
         ]
 
         if daily.get("burned_kcal") or daily.get("steps"):
-            lines.append(f"🏃 *Activité :* {daily.get('burned_kcal', 0)} kcal brûlées • 👟 {daily.get('steps', 0)} pas")
+            steps_str = f"{daily.get('steps', 0):,}".replace(",", " ")
+            lines.append(f"🏃 *Activité :* {daily.get('burned_kcal', 0)} kcal brûlées • 👟 {steps_str} pas")
 
         if daily.get("weight"):
             lines.append(f"⚖️ *Poids :* {daily['weight']} kg")
@@ -710,4 +723,7 @@ class YazioService:
         if not has_items:
             lines.append("  ▫️ _Aucune saisie alimentaire_")
 
-        return "\n".join(lines)
+        result = "\n".join(lines)
+        if len(result) > 4000:
+            result = result[:3950] + "\n\n...(tronqué)"
+        return result
